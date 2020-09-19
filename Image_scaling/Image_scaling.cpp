@@ -14,6 +14,9 @@
 using namespace std;
 using namespace cv;
 
+//	 functions
+cv::Mat img_scale(cv::Mat &src,double scalefactor);
+
 //	global	variables
 const char* img_src_name = "Orig_Image";
 const char* img_scl_name = "Scaled_Image";
@@ -56,6 +59,7 @@ int main()
 		waitKey(0);
 		return 0;
 	}
+	/*
 	//	Scale image
 	scl_img.create(y_scale,x_scale,CV_8UC1);
 	mask.create(y_scale, x_scale, CV_8UC1);
@@ -113,13 +117,90 @@ int main()
 			}
 		}
 	}
-	
+	*/
 	//bitwise_or(mask, scl_img, scl_img);
+	
 
+	double scale = ((float)x_scale / src_img.cols);
+	if ((scale >= 1) && (scale <= 2))
+	{
+		cout << "Scale fact: = " << scale << endl;
+		scl_img = img_scale(src_img, scale);
+	}
+	else if ((scale > 2) && (scale < 3))
+	{
+		cout << "Scale fact more then 2 and less 4: = " << scale << endl;
+		double scale1 = 2;
+		cout << "Scale fact 1 iter: = " << scale1 << endl;
+		scl_img = img_scale(src_img, scale1);
+		scale -= 1;
+		cout << "Scale fact 2 iter: = " << scale << endl;
+		Mat temp = img_scale(scl_img, scale);
+		scl_img = temp.clone();
+	}
+	
 	imshow(img_src_name, src_img);
 	imshow(img_scl_name, scl_img);
 
 	waitKey(0);
 
 	return EXIT_SUCCESS;
+}
+
+
+cv::Mat img_scale(cv::Mat& src, double scalefactor)
+{
+	//	Scale image
+	Mat scaled_img = (Mat::zeros(src.rows * scalefactor, src.cols * scalefactor, CV_8UC1)); ;
+	Mat	mask = (Mat::zeros(scaled_img.rows, scaled_img.cols, CV_8UC1));
+
+	//	x things
+	for (int y = 0; y < src.rows; y++)
+	{
+		for (int i = 0; i < src.cols; i++)
+		{
+			int x_coord = (int)((float)i * scalefactor);
+			scaled_img.at<uint8_t>(y, x_coord) = src.at<uint8_t>(y, i);
+			mask.at<uint8_t>(y, x_coord) = 255;
+		}
+	}
+
+	//	y things
+	Mat temp = scaled_img.clone();
+	Mat mask_temp = mask.clone();
+	mask = Mat::zeros(scaled_img.rows, scaled_img.cols, CV_8UC1);
+	scaled_img = Mat::zeros(scaled_img.rows, scaled_img.cols, CV_8UC1);
+	for (int x = 0; x < scaled_img.cols; x++)
+		for (int i = 0; i < src.rows; i++)
+		{
+			int y_coord = (int)((float)i * scalefactor);
+			scaled_img.at<uint8_t>(y_coord, x) = temp.at<uint8_t>(i, x);
+			mask.at<uint8_t>(y_coord, x) = mask_temp.at<uint8_t>(i, x);
+		}
+
+	//	add missed pixels
+	for (int y = 0; y < mask.rows; y++)
+	{
+		for (int x = 1; x < mask.cols - 1; x++)
+		{
+			if (mask.at<uint8_t>(y, x) == 0)
+			{
+				uint8_t color = (scaled_img.at<uint8_t>(y, x - 1) + scaled_img.at<uint8_t>(y, x + 1)) / 2;
+				scaled_img.at<uint8_t>(y, x) = color;
+			}
+		}
+	}
+	bitwise_or(mask, scaled_img, mask);
+	for (int x = 0; x < mask.cols; x++)
+	{
+		for (int y = 1; y < mask.rows - 1; y++)
+		{
+			if (mask.at<uint8_t>(y, x) == 0)
+			{
+				uint8_t color = (scaled_img.at<uint8_t>(y - 1, x) + scaled_img.at<uint8_t>(y + 1, x)) / 2;
+				scaled_img.at<uint8_t>(y, x) = color;
+			}
+		}
+	}
+	return scaled_img;
 }
