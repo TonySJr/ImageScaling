@@ -17,6 +17,9 @@ using namespace cv;
 
 //	 functions
 cv::Mat img_scale(cv::Mat &src,double scalefactor);
+cv::Mat img_scale_x(cv::Mat& src, double scalefactor);
+cv::Mat img_scale_y(cv::Mat& src, double scalefactor);
+
 
 //	global	variables
 const char* img_src_name = "Orig_Image";
@@ -52,20 +55,95 @@ int main()
 	moveWindow(img_scl_name, 600, 0);
 
 	//	read image
-	src_img = imread(img_path,IMREAD_GRAYSCALE);
+	src_img = imread(img_path, IMREAD_GRAYSCALE);
 	if (src_img.empty())
 	{
 		cout << "Image can't load, check name \n";
 		waitKey(0);
 		return 0;
 	}
+	Log.ConsoleLog("source img cols", (size_t)src_img.cols);
+	Log.ConsoleLog("source img rows", (size_t)src_img.rows);
 	//	Scale Image
-	double scale = ((float)x_scale / src_img.cols);
+	//double scale = ((float)x_scale / src_img.cols);
+
+
+	//	x scaling
+	double scale_x = (float)x_scale / src_img.cols;
+	if (scale_x > 2)
+	{
+		int scale_counter = 0;
+		for (; scale_x > 2; scale_x /= 2)
+		{
+			scale_counter++;
+		}
+		Log.ConsoleLog("scale_x value", scale_x);
+		Log.ConsoleLog("Scale_counter", (size_t)scale_counter);
+		scl_img = img_scale_x(src_img, scale_x);
+		do
+		{
+			scl_img = img_scale_x(scl_img, 2);
+			scale_counter--;
+		} while (scale_counter > 0);
+		double last = ((float)x_scale / scl_img.cols); 
+		if (last != 1)
+		{
+			Log.ConsoleLog("scale_x value last", last);
+			scl_img = img_scale_x(scl_img, last);
+		}
+	}
+	else
+	{
+		Log.ConsoleLog("scale_x value", scale_x);
+		scl_img = img_scale_x(src_img, scale_x);
+		double last = ((float)x_scale / scl_img.cols);
+		if (last != 1)
+		{
+			Log.ConsoleLog("scale_x value last", last);
+			scl_img = img_scale_x(scl_img, last);
+		}
+	}
+	//	y scaling
+	double scale_y = (float)y_scale / src_img.rows;
+	if (scale_y > 2)
+	{
+		int scale_counter = 0;
+		for (; scale_y > 2; scale_y /= 2)
+		{
+			scale_counter++;
+		}
+		Log.ConsoleLog("scale_y value", scale_y);
+		Log.ConsoleLog("Scale_counter", (size_t)scale_counter);
+		scl_img = img_scale_y(scl_img, scale_y);
+		do
+		{
+			scl_img = img_scale_y(scl_img, 2);
+			scale_counter--;
+		} while (scale_counter > 0);
+		double last = ((float)y_scale / scl_img.rows);
+		if (last != 1)
+		{
+			Log.ConsoleLog("scale_y value last", last);
+			scl_img = img_scale_y(scl_img, last);
+		}
+	}
+	else
+	{
+		Log.ConsoleLog("scale_y value", scale_y);
+		scl_img = img_scale_y(scl_img, scale_y);
+		double last = ((float)y_scale / scl_img.rows);
+		if (last != 1)
+		{
+			Log.ConsoleLog("scale_y value last", last);
+			scl_img = img_scale_y(scl_img, last);
+		}
+	}
+	/*
 	//	 new algo
 	if (scale > 2)
 	{
 		int scale_counter = 0;
-		for (;scale > 2;scale /=2)
+		for (; scale > 2; scale /= 2)
 		{
 			scale_counter++;
 		}
@@ -80,10 +158,13 @@ int main()
 	}
 	else
 	{
-		Log.ConsoleLog("Scale value", scale);		
+		Log.ConsoleLog("Scale value", scale);
 		scl_img = img_scale(src_img, scale);
 	}
+	*/
 
+	Log.ConsoleLog("scaled img cols", (size_t)scl_img.cols);
+	Log.ConsoleLog("scaled img rows", (size_t)scl_img.rows);
 	imshow(img_src_name, src_img);
 	imshow(img_scl_name, scl_img);
 
@@ -92,7 +173,96 @@ int main()
 	return EXIT_SUCCESS;
 }
 
+cv::Mat img_scale_x(cv::Mat& src, double scalefactor)
+{
+	//	Scale image
+	Mat scaled_img = (Mat::zeros(src.rows, src.cols * scalefactor, CV_8UC1));
+	Mat	mask = (Mat::zeros(scaled_img.rows, scaled_img.cols, CV_8UC1));
 
+	//	x things
+	for (int y = 0; y < src.rows; y++)
+	{
+		for (int x = 0; x < src.cols; x++)
+		{
+			int x_coord = (int)((float)x * scalefactor);
+			scaled_img.at<uint8_t>(y, x_coord) = src.at<uint8_t>(y, x);
+			mask.at<uint8_t>(y, x_coord) = 255;
+		}
+	}
+	if (scalefactor > 1)
+	{
+		//	add missed pixels
+		for (int y = 0; y < mask.rows; y++)
+		{
+			for (int x = 1; x < mask.cols - 1; x++)
+			{
+				if (mask.at<uint8_t>(y, x) == 0)
+				{
+					uint8_t color = (scaled_img.at<uint8_t>(y, x - 1) + scaled_img.at<uint8_t>(y, x + 1)) / 2;
+					scaled_img.at<uint8_t>(y, x) = color;
+				}
+			}
+		}
+		bitwise_or(mask, scaled_img, mask);
+		for (int x = 0; x < mask.cols; x++)
+		{
+			for (int y = 1; y < mask.rows - 1; y++)
+			{
+				if (mask.at<uint8_t>(y, x) == 0)
+				{
+					uint8_t color = (scaled_img.at<uint8_t>(y - 1, x) + scaled_img.at<uint8_t>(y + 1, x)) / 2;
+					scaled_img.at<uint8_t>(y, x) = color;
+				}
+			}
+		}
+	}
+	return scaled_img;
+}
+cv::Mat img_scale_y(cv::Mat& src, double scalefactor)
+{
+	//	Scale image
+	Mat scaled_img = (Mat::zeros(src.rows * scalefactor, src.cols, CV_8UC1));
+	Mat	mask = (Mat::zeros(scaled_img.rows, scaled_img.cols, CV_8UC1));
+
+	//	y things
+	for (int y = 0; y < src.rows; y++)
+	{
+		for (int x = 0; x < src.cols; x++)
+		{
+			int y_coord = (int)((float)y * scalefactor);
+			scaled_img.at<uint8_t>(y_coord, x) = src.at<uint8_t>(y, x);
+			mask.at<uint8_t>(y_coord, x) = 255;
+		}
+	}
+	if (scalefactor > 1)
+	{
+		//	add missed pixels
+		for (int y = 0; y < mask.rows; y++)
+		{
+			for (int x = 1; x < mask.cols - 1; x++)
+			{
+				if (mask.at<uint8_t>(y, x) == 0)
+				{
+					uint8_t color = (scaled_img.at<uint8_t>(y, x - 1) + scaled_img.at<uint8_t>(y, x + 1)) / 2;
+					scaled_img.at<uint8_t>(y, x) = color;
+				}
+			}
+		}
+		bitwise_or(mask, scaled_img, mask);
+		for (int x = 0; x < mask.cols; x++)
+		{
+			for (int y = 1; y < mask.rows - 1; y++)
+			{
+				if (mask.at<uint8_t>(y, x) == 0)
+				{
+					uint8_t color = (scaled_img.at<uint8_t>(y - 1, x) + scaled_img.at<uint8_t>(y + 1, x)) / 2;
+					scaled_img.at<uint8_t>(y, x) = color;
+				}
+			}
+		}
+	}
+	return scaled_img;
+}
 cv::Mat img_scale(cv::Mat& src, double scalefactor)
 {
 	//	Scale image
